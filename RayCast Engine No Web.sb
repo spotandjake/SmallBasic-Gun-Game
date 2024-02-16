@@ -1,0 +1,779 @@
+'TODO:
+'Stop Flicker
+CRLF = Text.GetCharacter(13) + Text.GetCharacter(10) 'the Normal Windows Line Engine CRLF
+'Map loader
+Sub LoadMap 'define the load map varible essentially two split functions, but sb doesnt have a direct split so this function is big
+  netData = File.ReadContents("./world.txt") 'request the map from the server, you could also use a readfile here and have it be local
+  done = "False" 'set the done parsing map varible
+  worldMap = "" 'set the worldMap varible to be empty
+  while(done = "False") ' while the map is not done parsing
+    netDataLFSplit = Math.max(Text.GetIndexOf(netData, ";")-1, 0) 'get the position of the first semicolon this is an optional line ending
+    If netDataLFSplit = 0 Then 'check if there is no semicolon
+      netDataLFSplit = Math.max(Text.GetIndexOf(netData, CRLF)-1, 0) 'if there is no semicolon we should split on line endings
+    EndIf 'end the if statement
+    If netDataLFSplit = 0 Then 'if ther eis no newline or semicolon assume that we can split till the end of the file, this occurs on last line when using newline splits
+      netDataLFSplit = Text.GetLength(netData) 'get the length of the string
+    EndIf ' end the if statment
+    netDataLine = Text.GetSubText(netData, 1, netDataLFSplit) 'Split at the discorvered split position
+    netDataLineCommaSplit = 1 'set the line comma split to be 1 so it is not 0
+    MapLine = "" 'reset the map line array
+    while (netDataLineCommaSplit <> 0) 'while there are commas
+      netDataLineCommaSplit = Math.max(Text.GetIndexOf(netDataLine, ",")-1, 0) 'get the position of the comma
+      If netDataLineCommaSplit = 0 Then 'if there is a comma
+        netDataLineCommaSplit = Text.GetLength(netDataLine) ' assume that this will go to the end of the line
+      EndIf ' end if statment
+      netDataLineData = Text.GetSubText(netDataLine, 1, netDataLineCommaSplit) 'get the data in between the comma
+      '=================
+      If netDataLineData = 9 Then ' if the spot on the map is an enemy
+        key = Array.GetItemCount(worldMap) + "x" + Array.GetItemCount(MapLine) 'make up a key that is XxY
+        enmy[key]["Health"] = 100 'set the health to 100 for the enemy
+        enmy[key]["Position"][0] = Array.GetItemCount(worldMap) 'set the x position
+        enmy[key]["Position"][1] = Array.GetItemCount(MapLine) ' set the y position
+        enmy[key]["Direction"][0] = -1 'set the normalized direction to be -1
+        enmy[key]["Direction"][1] = 0 'set the normalized direction to be 0
+      EndIf ' end the if statment
+      '=================
+      If Text.GetLength(netDataLineData) <> 0 Then ' if there is data
+        MapLine[Array.GetItemCount(MapLine)] = netDataLineData ' set the line of the map
+      EndIf ' end the if statment
+      netDataLine = Text.GetSubTextToEnd(netDataLine, netDataLineCommaSplit+2) ' set the line to be the line without the data we removed
+    EndWhile ' end the while loop
+    'Match to the type of entity
+    worldMap[Array.GetItemCount(worldMap)] = MapLine ' set the line of the map
+    netData = Text.GetSubTextToEnd(netData, netDataLFSplit+3) ' remove the line from the map string
+    If Text.GetLength(netData) = 0 Then ' if the map string is length 0 then we can stop looping
+      done = "True" ' say we are done
+    EndIf ' end the if statement
+  EndWhile ' end the while statement
+EndSub ' end the subroutine
+Initialise() ' call the initialization function
+'------------------------------------------------
+'Scenes
+'------------------------------------------------
+Sub MainMenu ' the main menu ui subroutine
+  MainMenuCleanup() ' cleanup the menu before remaking it
+  Mouse.ShowCursor() ' show the mouse
+  GraphicsWindow.BrushColor = "#333" ' set the background color to be dark grey
+  GraphicsWindow.FillRectangle(0, 0, GraphicsWindow.Width, GraphicsWindow.Height) ' clear the screen
+  btn_width = GraphicsWindow.Width/4 ' we want buttons to be the a quarter width of screen
+  btn_height = GraphicsWindow.Height/10 ' set the height of the button to be a tenth of the screen
+  btnXpos = GraphicsWindow.Width/2 - btn_width/2 ' Center the buttonson the x
+  buttons["Play"] = Controls.AddButton("Play", btnXpos, GraphicsWindow.Height/3-btn_height*2) ' draw the play button
+  buttons["Map Maker"] = Controls.AddButton("Map Maker", btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2) ' draw the mapmaker button
+  buttons["Instructions"] = Controls.AddButton("Instructions", btnXpos,(GraphicsWindow.Height/3-btn_height*2)*3) 'draw the instructions button
+  Controls.SetSize(buttons["Play"], btn_width, btn_height) ' set the button size
+  Controls.SetSize(buttons["Map Maker"], btn_width, btn_height) ' set the button size
+  Controls.SetSize(buttons["Instructions"], btn_width, btn_height) ' set the button size
+EndSub ' end the sobroutine
+sub MainMenuCleanup ' subroutine to cleanup the main function
+  Mouse.HideCursor() ' hide the cursor
+  Controls.Remove(buttons["Play"]) ' remove the buttons
+  Controls.Remove(buttons["Map Maker"]) ' remove the buttons
+  Controls.Remove(buttons["Instructions"])' remove the buttons
+EndSub ' end the subroutine
+sub InstructionsMenu ' instructions subroutine
+  Mouse.ShowCursor() ' shwo the cursor
+  GraphicsWindow.BrushColor = "#333" ' dark grey
+  GraphicsWindow.FillRectangle(0, 0, GraphicsWindow.Width, GraphicsWindow.Height) ' clear the background
+  btn_width = GraphicsWindow.Width/4 ' we want buttons to be the a quarter width of screen
+  btn_height = GraphicsWindow.Height/10 ' set the height of the button to be a tenth of the screen
+  btnXpos = GraphicsWindow.Width/2 - btn_width/2 ' Center the buttonson the x
+  buttons["InstructionsBack"] = Controls.AddButton("Back", btnXpos, GraphicsWindow.Height/3-btn_height*2) ' draw the back button
+  Controls.SetSize(buttons["InstructionsBack"], btn_width, btn_height) ' set the button size 
+  'Draw Instructions
+  GraphicsWindow.BrushColor = "#fff" ' set the text color
+  GraphicsWindow.FontSize = 20 ' set the text size
+  GraphicsWindow.DrawBoundText(btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2,btn_width,"Controls") ' draw the text
+  GraphicsWindow.DrawBoundText(btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2+GraphicsWindow.FontSize,btn_width,"W: Forward") ' draw the text
+  GraphicsWindow.DrawBoundText(btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2+GraphicsWindow.FontSize*2,btn_width,"S: Reverse") ' draw the text
+  GraphicsWindow.DrawBoundText(btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2+GraphicsWindow.FontSize*3,btn_width,"a: Rotate Left") ' draw the text
+  GraphicsWindow.DrawBoundText(btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2+GraphicsWindow.FontSize*4,btn_width,"d: Rotate Right") ' draw the text
+  GraphicsWindow.DrawBoundText(btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2+GraphicsWindow.FontSize*5,btn_width,"RMB: Shoot") ' draw the text
+  GraphicsWindow.DrawBoundText(btnXpos,(GraphicsWindow.Height/3-btn_height*2)*2+GraphicsWindow.FontSize*6,btn_width,"Space: Shoot") ' draw the text
+EndSub
+sub InstructionsMenuCleanup 'subroutine to cleanup the instructions
+  Mouse.HideCursor() ' hide the mouse 
+  Controls.Remove(buttons["InstructionsBack"]) ' remove the back to mainmenu button
+  GraphicsWindow.FontSize = 20 'reset the font size
+EndSub ' end the subroutine
+'Map Editor
+Sub DrawMap ' sub routine to draw the map for the map editor
+  Mouse.ShowCursor() ' show the cursor
+  GraphicsWindow.PenColor = "#000" ' set the pen to be black
+  boxWidth = GraphicsWindow.Width/Array.GetItemCount(worldMap) 'calculate even box width
+  boxHeight = GraphicsWindow.Height/Array.GetItemCount(worldMap[1]) 'calculate even box height
+  for x = 0 To Array.GetItemCount(worldMap)-1 'loop over the map x
+    for y = 0 To Array.GetItemCount(worldMap[1])-1 ' loop over the map y
+      If mouseDown = "True" Then 'if the map is down
+        MouseX = GraphicsWindow.MouseX ' get the mouseX
+        MouseY = GraphicsWindow.MouseY ' get the mouseY
+        if x*boxWidth < MouseX And MouseX < (x+1)*boxWidth And y*boxHeight < MouseY And MouseY < (y+1)*boxHeight Then ' if mouse is in box
+          If worldMap[x][y] = 9 Then ' if the spot on the map is 9
+            enmy[x][y] = ""'If enemy then remove from list of known enemys
+            worldMap[x][y] = 0 'clear the spot
+          ElseIf worldMap[x][y] = 7 Then ' if the spot on the world map is gonna become a bullet
+            worldMap[x][y] = 9 'we do not want to render bullets or allow the user to put them in
+          Else 'otherwise
+            worldMap[x][y] = worldMap[x][y] + 1 'add one to the map
+          EndIf ' end the if statment
+          If worldMap[x][y] = 9 Then ' if the spot is an enemy
+            key = x + "x" + y ' make a key
+            enmy[key]["Health"] = 100 'set the health to 100 for the enemy
+            enmy[key]["Position"][0] = x ' set the position
+            enmy[key]["Position"][1] = y ' set the position
+            enmy[key]["Direction"][0] = -1 ' set a direction
+            enmy[key]["Direction"][1] = 0 ' set a direction
+          EndIf ' end the if statment
+          mouseDown = "False" ' say the mouse isnt down
+          Update = "True" ' we want to draw a frame
+        EndIf ' end the if statment
+      EndIf ' end the if statment
+      If Update = "True" Then ' if we want to draw a frame
+        GraphicsWindow.BrushColor = "#555" ' default open spot color
+        GraphicsWindow.FillRectangle(x*boxWidth,y*boxHeight,boxWidth,boxHeight) 'draw a background square
+        If worldMap[x][y] = 9 Then ' draw enemy if square is 9
+          GraphicsWindow.DrawResizedImage(texture,x*boxWidth,y*boxHeight,boxWidth,boxHeight) 'draw a enemy image
+        ElseIf worldMap[x][y] = 8 Then ' draw bullet if square is 8
+          GraphicsWindow.FillEllipse(x*boxWidth,y*boxHeight,boxWidth,boxHeight) ' draw a bullet
+        ElseIf worldMap[x][y] <> 0 Then ' if the spot contains a wall
+          If worldMap[x][y] = 1 Then ' if the spot is 1
+            GraphicsWindow.BrushColor = "#f00" ' red wall
+          ElseIf worldMap[x][y] = 2 Then ' if the spot is 2
+            GraphicsWindow.BrushColor = "#0f0" ' green wall
+          ElseIf worldMap[x][y] = 3 Then ' if spot is 3
+            GraphicsWindow.BrushColor = "#00f" 'blue wall
+          ElseIf worldMap[x][y] = 4 Then ' if spot is 4
+            GraphicsWindow.BrushColor = "#fff" 'white wall
+          Else ' otherwise
+            GraphicsWindow.BrushColor = "#ff0" ' yellow wall
+          EndIf ' end the if statment
+          GraphicsWindow.FillRectangle(x*boxWidth,y*boxHeight,boxWidth,boxHeight) ' fill the square
+        Else 'draw it grey if it is 0
+          GraphicsWindow.BrushColor = "#555" 'draw a clear background
+          GraphicsWindow.FillRectangle(x*boxWidth,y*boxHeight,boxWidth,boxHeight) 'draw the rectangle
+        EndIf ' end the if statment
+        GraphicsWindow.DrawRectangle(x*boxWidth,y*boxHeight,boxWidth,boxHeight) 'draw a box outline
+      EndIf ' end the if statment
+    EndFor ' end the for loop
+  EndFor ' end the for loop
+  mouseDown = "False" ' if the mouse is down
+EndSub ' end the subroutine
+'------------------------------------------------
+'GAME LOOP
+'------------------------------------------------
+While ("True") ' while the program is running
+  start = Clock.ElapsedMilliseconds ' start of frame
+  if location = "Game" Then ' if the location is the game
+    UpdateGamePlay() ' update the gameplayer (things like controls)
+    If Update = "True" Then ' if frame update
+      createframe() ' create frame
+      UpdateFrame() ' draw the frame
+      GraphicsWindow.DrawText(10, 10, Clock.ElapsedMilliseconds - start + "ms") ' calculat how long the frame took to draw
+    EndIf ' end the if statement
+    frameCount = frameCount + 1 ' add 1 to the frame count
+  ElseIf location = "MapEditor" Then ' if the location is the mapeditor
+    DrawMap() 'draw the map
+  ElseIf location = "MainMenu" And Update = "True" Then ' if location is the main menu, and there is an update
+    MainMenu() ' draw the main menu
+  ElseIf location = "Instructions" And Update = "True" Then ' if the location is the instructions and there is an update
+    InstructionsMenu() ' draw the instructions menu
+  EndIf ' end the if statement
+  Update = "False" ' update is now false
+  'A delay up to 20 ms (50 fps) depending on time spent doing work preparing frame update
+  delay = 20 - (Clock.ElapsedMilliseconds - start) ' calclate a delay
+  If (delay > 0) Then ' if the delay is not 0
+    Program.Delay(delay) ' delay until the delay is up
+  EndIf ' end the if statemen
+EndWhile ' end  the while loop
+'------------------------------------------------
+'SUBROUTINES
+'------------------------------------------------
+Sub Initialise ' the initilization steps
+  'Register events
+  GraphicsWindow.KeyDown = OnKeyDown ' listen for key down
+  GraphicsWindow.KeyUp = OnKeyUp ' listen for key up
+  GraphicsWindow.MouseDown = OnMouseDown ' listen for mouse down
+  Controls.ButtonClicked = OnControlClick ' listen for user to click an on screen button
+  'Threading
+  Timer.Interval = 1000 ' set timer interval
+  Timer.Tick = SoundEngine  ' run the soundEngine on the timer thread seperatly
+  'Varribles andd stuff
+  GraphicsWindow.Top = 0 ' set the window to 0, 0 on the screen
+  GraphicsWindow.Left = 0 ' set the window to 0, 0 on the screen
+  width = Desktop.Width ' width is desktop width
+  height = Desktop.Height-125 ' heaight is desktop height - taskbar and scoreboard
+  rayThickness = 15 ' thickness of each ray
+  scoreboardHeight = 50 ' scoreboard height
+  posX = 10 ' player position x
+  posY = 9 ' player position Y
+  dirX = -1 ' player direction x
+  dirY = 0 ' player direction Y
+  health = 100 ' player health
+  planeX = 0 ' projection plane X
+  planeY = 0.66 ' projection plane y
+  time = 0 ' time since start
+  oldTime = 0 ' time since last frame
+  frameCount = 0 ' the current number of frames passed
+  Update = "True" ' if there was an update in the current frame
+  shoot = 0 'shooting / gun frame
+  shots = "" 'make an array for bullets
+  'Bullet speed
+  BulletSpeed = 1 ' the bullet speed
+  'Audio vars
+  soundShoot = "False" ' should play sound shoot
+  PlayerInjured = "False" ' should play sound injured
+  ' Do Setup
+  GraphicsWindow.Width = width ' set the graphics window to be width
+  GraphicsWindow.Height = height+scoreboardHeight ' set the graphics window to the height
+  GraphicsWindow.BrushColor = "#333" ' set background color 
+  GraphicsWindow.FillRectangle(0, 0, width, height) ' clear screen
+  texture = ImageList.LoadImage("./enemy.png") ' load enemy image from server
+  'Load Gun Textures
+  texture_gun[0] = ImageList.LoadImage("./Gun-1/1.png") ' load the gun image from the server
+  texture_gun[1] = ImageList.LoadImage("./Gun-1/2.png") ' load the gun image from the server
+  texture_gun[2] = ImageList.LoadImage("./Gun-1/3.png") ' load the gun image from the server
+  texture_gun[3] = ImageList.LoadImage("./Gun-1/4.png") ' load the gun image from the server
+  'Load the Map
+  LoadMap() ' load the map
+  location = "MainMenu" ' set location to be the main menu
+EndSub ' end the subroutine
+'Check For Updates
+Sub UpdateGamePlay ' set the sub to be Update Game Play
+  'timing for input
+  oldTime = time ' set the last frame time to be the old time
+  time = frameCount ' time is the frame count
+  frameTime = (time - oldTime) / 1000.0 'frameTime is the time this frame has taken, in seconds
+  'speed modifiers
+  moveSpeed = frameTime * 80.0 'the constant value is in squares/second
+  rotSpeed = frameTime * 40.0 'the constant value is in radians/second
+  'move forward if no wall in front of you
+  If keys["w"] = "True" or keys["Up"] = "True" Then ' if the w key is down or the up arrow is down
+    If worldMap[Math.floor(posX + dirX * moveSpeed)][Math.floor(posY)] = 0 Then 'make sure there is no wall at the position
+      posX = posX + (dirX * moveSpeed) ' the new position
+      Update = "True" ' we want to update the frame
+    EndIf ' end the if statement
+    If worldMap[Math.floor(posX)][Math.floor(posY + dirY * moveSpeed)] = 0 Then 'make sure there is no wall at the position
+      posY = posY + (dirY * moveSpeed) ' the new position
+      Update = "True" ' we want to update the frame
+    EndIf ' end the if statement
+  EndIf ' end the if statement
+  'move backwards if no wall behind you
+  If keys["s"] = "True" or keys["Down"] = "True" Then ' if the s key is down or the Down arrow is down
+    If worldMap[Math.floor(posX - dirX * moveSpeed)][Math.floor(posY)] = 0 Then 'make sure there is no wall at the position
+      posX = posX - (dirX * moveSpeed)  ' the new position
+      Update = "True" ' we want to update the frame
+    EndIf ' end the if statement
+    If worldMap[Math.floor(posX)][Math.floor(posY - dirY * moveSpeed)] = 0 Then 'make sure there is no wall at the position
+      posY = posY - (dirY * moveSpeed)  ' the new position
+      Update = "True" ' we want to update the frame
+    EndIf ' end the if statement
+  EndIf ' end the if statement
+  'rotate to the right
+  If keys["d"] = "True" or keys["Right"] = "True" Then ' if the d key is down or the right arrow is down
+    'both camera direction and camera plane must be rotated
+    oldDirX = dirX ' set the old direction
+    dirX = dirX * Math.cos(-rotSpeed) - dirY * Math.sin(-rotSpeed) ' new direction
+    dirY = oldDirX * Math.sin(-rotSpeed) + dirY * Math.cos(-rotSpeed) ' new direction
+    oldPlaneX = planeX ' old projection plane
+    planeX = planeX * Math.cos(-rotSpeed) - planeY * Math.sin(-rotSpeed) ' calculate planeX
+    planeY = oldPlaneX * Math.sin(-rotSpeed) + planeY * Math.cos(-rotSpeed) ' calculate planeY
+    Update = "True" ' we want to update the frame
+  EndIf ' end the if statement
+  'rotate to the left
+  If keys["a"] = "True" or keys["Left"] = "True" Then ' if the a key is down or the Left arrow is down
+    'both camera direction and camera plane must be rotated
+    oldDirX = dirX ' set the old direction
+    dirX = dirX * Math.cos(rotSpeed) - dirY * Math.sin(rotSpeed) ' new direction
+    dirY = oldDirX * Math.sin(rotSpeed) + dirY * Math.cos(rotSpeed) ' new direction
+    oldPlaneX = planeX ' old projection plane
+    planeX = planeX * Math.cos(rotSpeed) - planeY * Math.sin(rotSpeed) ' calculate planeX
+    planeY = oldPlaneX * Math.sin(rotSpeed) + planeY * Math.cos(rotSpeed) ' calculate planeY
+    Update = "True" ' we want to update the frame
+  EndIf ' end the if statement
+  'On shoot
+  If mouseDown = "True" Then ' if the mouse is down
+    shoot = 5 ' set the shoot frame to be 5
+    mouseDown = "False" ' mouse down is now false
+    soundShoot = "True" ' play the shoot sound
+    'Deal with spawning bullet
+    tmp_bullet["parent"] = "Player" ' spawn a new bullet
+    tmp_bullet["speed"] = BulletSpeed ' set bullet speed
+    tmp_bullet["Direction"][0] = dirX ' set bullet direction
+    tmp_bullet["Direction"][1] = dirY ' set bullet direction
+    tmp_bullet["Position"][0] = posX ' set bullet position
+    tmp_bullet["Position"][1] = posY ' set bullet position
+    shots[Math.Floor(posX)+"x"+Math.Floor(posY)] = tmp_bullet 'add it to the shot list
+  EndIf ' end the if statment
+  'We want to keep the shoot animation runnning
+  If shoot <> 0 Then ' if the shoot is animation needs to be played
+    Update = "True" ' update the frame
+  EndIf ' end the if statment
+  'We do not want the direction to ever be 0 it causes issues
+  If dirX = 0 Then ' if the direction is 0 
+    dirX = 0.1 ' set the direction to .1
+  EndIf ' end if
+  If dirY = 0 Then ' if the direction is 0 
+    dirY = 0.1 ' set the direction to .1
+  EndIf ' end if
+  'Enemy AI
+  enemys_keys = Array.GetAllIndices(enmy) ' get keys for enemys
+  index = 1 '  set index to be 1
+  For index = 1 To Array.GetItemCount(enmy) ' loop over enemys
+    key = enemys_keys[index] ' get the enemy key
+    enemy = enmy[key] ' get the enemy
+    enmyPosX = enemy["Position"][0] ' enemy position
+    enmyPosY = enemy["Position"][1] ' enemy position
+    enmyDirX = enemy["Direction"][0] ' enemy direction
+    enmyDirY = enemy["Direction"][1] ' enemy direction
+    decision = Math.GetRandomNumber(20) ' make a random decision
+    oldpos[0] = enmyPosX ' enemy old positionX
+    oldpos[1] = enmyPosY ' enemy old positionY
+    'move forward if no wall in front of you
+    dist = Math.SquareRoot(Math.Power(posX-enmyPosX, 2) + Math.Power(posY-enmyPosY, 2)) ' the enemy distance from the player
+    If dist < 2 Then ' if the enemy is within 2 of the player
+      health = health - 0.001 ' set the player health
+      PlayerInjured = "True" ' play player injured sound
+    ELseIf dist < 10 Then 'if distance to player is less than 10then follow towards player
+      distDirX = enmyPosX - posX ' player distanceX
+      distDirY = enmyPosY - posY ' player distanceY
+      predictedMapX = Math.floor(enmyPosX - distDirX * moveSpeed) ' predicted position
+      predictedMapY = Math.floor(enmyPosX - distDirY * moveSpeed) ' predicted position
+      If worldMap[predictedMapX][Math.floor(enmyPosY)] = 0 Or predictedMapX = Math.floor(enmyPosX) Then ' check if the spot is clear
+        enmyPosX = enmyPosX - (distDirX * moveSpeed/10) ' move enemy
+      EndIf ' end if
+      If worldMap[Math.floor(enmyPosX)][predictedMapY] = 0 Or predictedMapY = Math.floor(enmyPosY) Then ' check if the spot is clear
+        enmyPosY = enmyPosY - (distDirY * moveSpeed/10) ' move enemy
+      EndIf ' end if
+    ElseIf decision = 1 Then
+      predictedMapX = Math.floor(enmyPosX + enmyDirX * moveSpeed) ' predicted position
+      predictedMapY = Math.floor(enmyPosX + enmyDirX * moveSpeed) ' predicted position
+      If worldMap[predictedMapX][Math.floor(enmyPosY)] = 0 Or predictedMapX = Math.floor(enmyPosX) Then ' check if the spot is clear
+        enmyPosX = enmyPosX + (enmyDirX * moveSpeed) ' move enemy
+      EndIf ' end if
+      If worldMap[Math.floor(enmyPosX)][predictedMapY] = 0 Or predictedMapY = Math.floor(enmyPosY) Then ' check if the spot is clear
+        enmyPosY = enmyPosY + (enmyDirY * moveSpeed) ' move enemy
+      EndIf ' end if
+    ElseIf decision = 2 Then 'move backwards if no wall behind you
+      predictedMapX = Math.floor(enmyPosX - enmyDirX * moveSpeed) ' predicted position
+      predictedMapY = Math.floor(enmyPosX - enmyDirX * moveSpeed) ' predicted position
+      If worldMap[predictedMapX][Math.floor(enmyPosY)] = 0 Or predictedMapX = Math.floor(enmyPosX) Then ' check if the spot is clear
+        enmyPosX = enmyPosX - (enmyDirX * moveSpeed) ' move enemy
+      EndIf ' end if
+      If worldMap[Math.floor(enmyPosX)][predictedMapY] = 0 Or predictedMapY = Math.floor(enmyPosY) Then ' check if the spot is clear
+        enmyPosY = enmyPosY - (enmyDirY * moveSpeed) ' move enemy
+      EndIf ' end if
+    ElseIf decision = 3 Then 'rotate to the right
+      'both camera direction and camera plane must be rotated
+      oldDirX = enmyDirX ' set olddirection
+      enmyDirX = enmyDirX * Math.cos(-rotSpeed) - enmyDirY * Math.sin(-rotSpeed) ' set the enemy dir
+      enmyDirY = oldDirX * Math.sin(-rotSpeed) + enmyDirY * Math.cos(-rotSpeed) ' set the enemy dir
+    ElseIf decision = 4 Then 'rotate to the left
+      'both camera direction and camera plane must be rotated
+      oldDirX = enmyDirX ' set olddirection
+      enmyDirX = enmyDirX * Math.cos(rotSpeed) - enmyDirY * Math.sin(rotSpeed) ' set the enemy dir
+      enmyDirY = oldDirX * Math.sin(rotSpeed) + enmyDirY * Math.cos(rotSpeed) ' set the enemy dir
+    EndIf ' end if
+    'Protect agaist the bot jumping into the player
+    If Math.Floor(enmyPosX) <> Math.Floor(posX) And Math.Floor(enmyPosY) <> Math.Floor(posY) Then ' make sure the enemy doesnt move into the player
+      enemy["Position"][0] = enmyPosX ' set the enemy position
+      enemy["Position"][1] = enmyPosY ' set the enemy position
+      enemy["Direction"][0] = enmyDirX ' set the enemy direction
+      enemy["Direction"][1] = enmyDirY ' set the enemy direction
+      newKey = Math.Floor(enmyPosX)+"x"+Math.Floor(enmyPosY) ' generate a new key
+      If newKey <> key Then ' if the new key is not the old key
+        'Determine movement
+        worldMap[Math.Floor(oldpos[0])][Math.Floor(oldpos[1])] = 0 ' clear the old map spot
+        'Add the enemy back
+        enmy[key] = "" ' clear the old enemy
+        enmy[Math.Floor(enmyPosX)+"x"+Math.Floor(enmyPosY)] = enemy ' set new enemy
+        worldMap[Math.Floor(enmyPosX)][Math.Floor(enmyPosY)] = 9 ' put enemy in new spot
+      Else ' if the new key is the old key
+        enmy[key] = enemy ' set the current enemy 
+      EndIf ' end if
+    EndIf ' end if
+  EndFor ' end the for loop
+  'Handle Bullet
+  shots_keys = Array.GetAllIndices(shots) ' get the shots keys
+  for index = 1 To Array.GetItemCount(shots_keys) ' loop over the shots
+    key = shots_keys[index] ' get the shot key
+    shot = shots[key] ' set the shot
+    tmp_bullet = shot ' make a temp bullet
+    bulletX = tmp_bullet["Position"][0] + (tmp_bullet["Direction"][0]*tmp_bullet["Speed"]) ' move this to one in front of the shooter
+    bulletY = tmp_bullet["Position"][1] + (tmp_bullet["Direction"][1]*tmp_bullet["Speed"]) ' move this to one in front of the shooter
+    tmp_bullet["Speed"] = tmp_bullet["Speed"] - 0.01 ' set the new bullet speed
+    tmp_bullet["Position"][0] = bulletX ' set the bullet position
+    tmp_bullet["Position"][1] = bulletY ' set the bullet position
+    shots[key] = "" ' clear the old bullet
+    'Check if block is free
+    if worldMap[Math.Floor(bulletX)][Math.Floor(bulletY)] = 0 Then ' check if the world map is clear
+      'Check if we left a bullet at our last position
+      if worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 8 Then ' if there is a bullet at the last bullet position
+        worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 0 ' clear the last position
+      EndIf ' end the if statement
+      if tmp_bullet["Speed"] <> 0 Then ' if speed is 0 dont add the bullet back in 
+        shots[Math.Floor(bulletX)+"x"+Math.Floor(bulletY)] = tmp_bullet 'add it to the shot list
+        worldMap[Math.Floor(tmp_bullet["Position"][0])][Math.Floor(tmp_bullet["Position"][1])] = 8 'put a bullet on the map
+      Else ' otherwise
+        if worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 8 Then ' if there is a bullet at the last bullet position
+          worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 0 ' clear the last position
+        EndIf ' end the if statement
+      EndIf ' end the if statement
+    ElseIf worldMap[Math.Floor(bulletX)][Math.Floor(bulletY)] = 9 And tmp_bullet["parent"] = "Player" Then ' if ther is an enemy at the position on the map and the bullet was shot by the player
+      'hit enemy cleanup bullet
+      current_health = enmy[Math.Floor(bulletX) +"x" + Math.Floor(bulletY)]["Health"] ' get the enemy current health
+      newHealth = current_health - 10 ' calcualte new health
+      If newHealth = 0 Then ' if the health  is 0
+        enmy[Math.Floor(bulletX) +"x" + Math.Floor(bulletY)] = "" ' remove the enemy from list of enemys
+        worldMap[Math.Floor(bulletX)][Math.Floor(bulletY)] = 0 ' clear the spot on the world map
+      Else ' otherwise
+        enmy[Math.Floor(bulletX) +"x" + Math.Floor(bulletY)]["Health"] = newHealth ' set the new health for the enemy
+      EndIf ' end the if statement
+      'Cleanup
+      if worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 8 Then ' if there is a bullet at the old spot
+        worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 0 ' remove the bullet 
+      EndIf ' end the if statement
+    ElseIf Math.Floor(bulletX) = Math.floor(posX) And Math.Floor(bulletY) = Math.floor(posY) And tmp_bullet["parent"] = "Enemy" Then ' if the bullet hit the player and the shot was fired by the enemy
+      health = health - 1 ' remove 1 from the enemy health
+      PlayerInjured = "True" ' play the PlayerInjured sound
+    Else ' otherwise
+      if worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 8 Then ' if there is a bullet at the old spot
+        worldMap[Math.Floor(shot["Position"][0])][Math.Floor(shot["Position"][1])] = 0 ' remove the bullet 
+      EndIf ' end the if statement
+    EndIf ' end the if statement
+  EndFor ' end the for loop
+EndSub ' end the subroutine
+Sub createframe ' the createframe subroutine
+  h2 = height / 2 'calculae height / 2
+  ' Wall Cast
+  enemys = "" 'Clear the known enemeys list
+  bullets = "" 'Clear the knwon bullet list
+  For x = 0 To width Step rayThickness 'start at our lace which is an offset so we only render so much of the screen per frame then go to sccreen width and step by 3
+    'calculate ray position and direction
+    cameraX = 2 * x / width - 1 'x-coordinate in camera space
+    rayDirX = dirX + planeX * cameraX ' calculate the ray dir x
+    rayDirY = dirY + planeY * cameraX ' calculate the ray dir y
+    mapX = Math.floor(posX) ' which box of the map we"re in
+    mapY = Math.floor(posY) ' which box of the map we"re in
+    deltaDistX = Math.abs(1 / rayDirX) 'length of ray from one x or y-side to next x or y-side
+    deltaDistY = Math.abs(1 / rayDirY) 'length of ray from one x or y-side to next x or y-side
+    'calculate step and initial sideDist
+    If rayDirX < 0 Then ' if the ray length is less than 0
+      stepX = -1 ' set the step to be -
+      sideDistX = (posX - mapX) * deltaDistX ' calc the side dist
+    Else ' otherwise
+      stepX = 1 ' set the step to be positive
+      sideDistX = (mapX + 1.0 - posX) * deltaDistX ' calc the side dist
+    EndIf ' end the if statement
+    If rayDirY < 0 Then ' if the ray length is less than 0
+      stepY = -1 ' set the step to be -
+      sideDistY = (posY - mapY) * deltaDistY ' calc the side dist
+    Else ' otherwise
+      stepY = 1 ' set the step to be positive
+      sideDistY = (mapY + 1.0 - posY) * deltaDistY ' calc the side dist
+    EndIf ' end the if statement
+    'perform DDA
+    hit = "False" 'was there a wall hit?
+    ray_length = 0 'set a ray length that just tells us how many times we have failed at fiinding a wall this will stop the program spiralling if there is no wall or a wall is too far a way
+    While (hit = "False") ' if we havent hit a wall yet
+      If sideDistX < sideDistY Then 'jump to next map square, OR in x-direction, OR in y-direction
+        sideDistX = sideDistX + deltaDistX ' travel to the next square
+        mapX = mapX + stepX ' travel to the next square
+        side = 0 ' side is 0
+      Else ' otherwise
+        sideDistY = sideDistY + deltaDistY ' travel to the next square
+        mapY = mapY + stepY ' travel to the next square
+        side = 1 ' side is 1
+      EndIf ' end the if statement
+      If Array.GetItemCount(worldMap) < mapX Then ' if we have gone through the entire map
+        Goto afterFor ' break from the loop
+      EndIf ' end the if statement
+      If worldMap[mapX][mapY] = 9 Then 'if we have ffound an enemy
+        'Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
+        if mapX = posX Then  ' if the mapX is the posX the division will be 0
+          perpWallDist = 1 ' set this to a default 1
+        ElseIf side = 0 Then ' if the side is 0
+          perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX ' calculate the wall distance
+        Else ' otherwise
+          perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY ' calculate the wall distance
+        EndIf ' end the if statement
+        lineHeight = height / perpWallDist 'Calculate height of line to draw on screen
+        drawStart = -lineHeight / 2 + h2 'calculate lowest and highest pixel to fill in current stripe
+        If drawStart < 0 Then ' if the drawStart is less than 0
+          drawStart = 0 ' set drawStart to 0
+        EndIf ' end the if statement
+        drawEnd = lineHeight / 2 + h2 'calculate lowest and highest pixel to fill in current stripe
+        If drawEnd >= height Then ' if the drawEnd is greater than or - to the height
+          drawEnd = height - 1 ' set the drawend to be one less than the height
+        EndIf ' end the if statment
+        'draw the pixels of the stripe as a vertical line
+        If enemys[mapX +"x" + mapY] = "" Then ' if the visible enemy is not in the visible enemy list
+          tmp_enemy = "" ' clear the enemy
+          tmp_enemy["start"] = x ' set the start of the enemys
+          tmp_enemy["end"] = x ' set the end of the enemy
+          tmp_enemy["drawStart"] = drawStart ' set the drawStart for the enemy
+          tmp_enemy["drawEnd"] = drawEnd ' set the draw end for the enemy
+          enemys[mapX +"x" + mapY] = tmp_enemy ' add the enemy to the list of visible enemys
+        Else ' otherwise
+          enemys[mapX +"x" + mapY]["end"] = x ' change the end of the enemy
+        EndIf ' end if
+      ElseIf worldMap[mapX][mapY] = 8 Then 'Bullets
+        'Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
+        if mapX = posX Then  ' if the mapX is the posX the division will be 0
+          perpWallDist = 1 ' set this to a default 1
+        ElseIf side = 0 Then ' if the side is 0
+          perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX ' calculate the wall distance
+        Else ' otherwise
+          perpWallDist = (posX + (1 - stepY) / 2) / rayDirY ' calculate the wall distance
+        EndIf ' end the if statement
+        if perpWallDist = 0 Then ' if the perpwallDist is 0 
+          perpWallDist = 1 ' set to one to protect agaist divide by 0
+        EndIf ' end if
+        lineHeight = height / perpWallDist 'Calculate height of line to draw on screen
+        drawStart = -lineHeight / 2 + h2 'calculate lowest and highest pixel to fill in current stripe
+        If drawStart < 0 Then ' if the drawStart is less than 0
+          drawStart = 0 ' set drawStart to 0
+        EndIf ' end the if statement
+        drawEnd = lineHeight / 2 + h2 'calculate lowest and highest pixel to fill in current stripe
+        If drawEnd >= height Then ' if the drawEnd is greater than or - to the height
+          drawEnd = height - 1 ' set the drawend to be one less than the height
+        EndIf ' end the if statment
+        'draw the pixels of the stripe as a vertical line
+        If bullets[mapX +"x" + mapY] = "" Then ' if the visible bullet is not in the visible bullet list
+          tmp_bullet = "" ' clear the bullet
+          tmp_bullet["start"] = x ' set the start of the bullets
+          tmp_bullet["end"] = x ' set the end of the bullet
+          tmp_bullet["drawStart"] = drawStart ' set the drawStart for the bullet
+          tmp_bullet["drawEnd"] = drawEnd ' set the draw end for the bullet
+          bullets[mapX +"x" + mapY] = tmp_bullet ' add the bullet to the list of visible bullets
+        Else ' otherwise
+          bullets[mapX +"x" + mapY]["end"] = x ' change the end of the bullet
+        EndIf ' end if
+      ElseIf worldMap[mapX][mapY] <> 0 Then' Check if ray hit a wall
+        hit = "True" 'set the hit value to true and end the loop
+      EndIf ' end the if statment
+      ray_length = ray_length + 1 ' add 1 to the ray distance
+    EndWhile ' end the while loop
+    If Array.GetItemCount(worldMap) > mapX-1 Then
+      'Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
+      If side = 0 Then ' if side is 0
+        val = mapX - posX + (1 - stepX) / 2 ' beginning step of the perpWallDist calc
+        If  val = 0 Then 'protect agist dive by 0
+          perpWallDist = 1 'set to 1 as a default for divide by 0 protocetion
+        Else ' otherwise
+          perpWallDist = val / rayDirX ' calc perWallDist
+        EndIf ' end if
+      Else ' otherwise
+        val = mapY - posY + (1 - stepY) / 2 ' beginning step of the perpWallDist calc
+        If val = 0 Then 'protect agaist divde by 0
+          perpWallDist = 1 'set to 1 as a default for divide by 0 protocetion
+        Else ' otherwise
+          perpWallDist = val / rayDirY ' calc perWallDist
+        EndIf ' end if
+      EndIf ' end if
+      lineHeight = height / perpWallDist 'Calculate height of line to draw on screen
+      drawStart = -lineHeight / 2 + h2 'calculate lowest and highest pixel to fill in current stripe
+      If drawStart < 0 Then ' if the drawStart is less than 0
+        drawStart = 0 ' set drawStart to 0
+      EndIf ' end the if statement
+      drawEnd = lineHeight / 2 + h2 'calculate lowest and highest pixel to fill in current stripe
+      If drawEnd >= height Then ' if the drawEnd is greater than or - to the height
+        drawEnd = height - 1 ' set the drawend to be one less than the height
+      EndIf ' end the if statment
+      'choose wall color give x and y sides different brightness
+      If worldMap[mapX][mapY] = 1 Then ' if map spot is 1
+        'red
+        If side = 1 Then ' if the side is 1 which is furthur away
+          color = "#800" ' darker above color
+        Else ' otherwise
+          color = "#f00" ' color above
+        EndIf ' end if
+      ElseIf worldMap[mapX][mapY] = 2 Then ' if map spot is 2
+        'green
+        If side = 1 Then ' if the side is 1 which is furthur away
+          color = "#080" ' darker above color
+        Else ' otherwise
+          color = "#0f0" ' color above
+        EndIf ' end if
+      ElseIf worldMap[mapX][mapY] = 3 Then ' if map spot is 3
+        'blue
+        If side = 1 Then ' if the side is 1 which is furthur away
+          color = "#008" ' darker above color
+        Else ' otherwise
+          color = "#00f" ' color above
+        EndIf ' end if
+      ElseIf worldMap[mapX][mapY] = 4 Then ' if map spot is 4
+        'white
+        If side = 1 Then ' if the side is 1 which is furthur away
+          color = "#888" ' darker above color
+        Else ' otherwise
+          color = "#fff" ' color above
+        EndIf ' end if
+      Else ' otherwise
+        'yellow
+        If side = 1 Then ' if the side is 1 which is furthur away
+          color = "#880" ' darker above color
+        Else ' otherwise
+          color = "#ff0" ' color above
+        EndIf ' end if
+      EndIf ' end if
+      wall["color"] = color ' set wall color
+      wall["x1"] = x ' set wall x
+      wall["y1"] = drawStart 'set wall bottom y
+      wall["y2"] = drawEnd ' set wall top y
+      Stack.PushValue("walls", wall) ' push the wall onto the stack
+    EndIf ' end if
+    afterFor: ' breakpoint
+  EndFor ' end for
+EndSub ' end the subroutine
+' Run Frames
+Sub UpdateFrame
+  'Clear the Map
+  GraphicsWindow.BrushColor = "#333" 'set the brush to the background color
+  GraphicsWindow.FillRectangle(0, 0, width, height) ' clear the background
+  'Draw Walls
+  While (Stack.GetCount("walls") <> 0) ' while there are walls in the stack
+    wall = Stack.PopValue("walls") ' get the current wall
+    GraphicsWindow.BrushColor = wall["color"] ' set the brush to the current wall color
+    GraphicsWindow.FillRectangle(wall["x1"], wall["y1"], rayThickness+1, wall["y2"]-wall["y1"]) ' fill the rectangle wall
+  EndWhile ' end the while loop
+  ' Draw Enemys
+  enemys_keys = Array.GetAllIndices(enemys) ' get the keys for the visible enemy list
+  For index = 1 To Array.GetItemCount(enemys_keys) ' loop over the visible enemies
+    key = enemys_keys[index] ' get the current enemy key
+    enemy = enemys[key] ' get the current enemy
+    enmyX = enemy["start"] ' get the x of the current enemy
+    enmyY =  enemy["drawStart"] ' get the y of the current enemy
+    enmyWidth = enemy["end"] - enemy["start"] ' get the width of the current enemy
+    enmyHeight = enemy["drawEnd"]-enemy["drawStart"] ' get the height of the current enemy
+    'img, x, y, width, height
+    GraphicsWindow.DrawResizedImage(texture, enmyX, enmyY, enmyWidth, enmyHeight) ' draw the enemy 
+    'Draw enemy health bar
+    GraphicsWindow.BrushColor = "#f00" ' set the health bar background color to red
+    GraphicsWindow.FillRectangle(enmyX+enmyWidth*0.2, enmyY, ((enmyWidth)-enmyWidth*0.4), enmyHeight*0.1) ' draw the healther bar
+    GraphicsWindow.BrushColor = "#0f0" ' set the health bar color to green
+    GraphicsWindow.FillRectangle(enmyX+enmyWidth*0.2, enmyY, ((enmyWidth)-enmyWidth*0.4)/100*enmy[key]["Health"], enmyHeight*0.1) ' fill the healther bar green
+    shootPlayer = Math.GetRandomNumber(50) ' determien if we are gonna hti the player in this scene witha bullet
+    if shootPlayer = 50 Then '2% chance of hitting player
+      'TODO: get enemy bullet trail working
+      health = health - 1 ' lower the enemy health
+    EndIf ' end if
+  EndFor ' end the for loop
+  ' Draw Bullets
+  GraphicsWindow.BrushColor = "#f39" ' set bullet color
+  bullets_keys = Array.GetAllIndices(bullets) ' get all bullet keys
+  For index = 0 To Array.GetItemCount(bullets_keys) ' loop over visible bullets
+    key = bullets_keys[index] ' get bullet key
+    bullet = bullets[key] ' get bullet
+    bulletX = bullet["start"] ' get bullet start x
+    bulletY = bullet["drawStart"] ' get bullet 
+    bulletWidth = bullet["end"] - bullet["start"] ' get the bullet width
+    bulletHeight = bullet["drawEnd"]-bullet["drawStart"] ' get the bullet height
+    GraphicsWindow.FillEllipse(bulletX+bulletWidth/2,bulletY+bulletHeight/2, bulletWidth*0.1, bulletWidth*0.1) 'Draw the bullet
+  EndFor ' end the for loop
+  'Lower the Guns Animation phase
+  If shoot <> 0 Then ' if the shoot frame is not 0
+    shoot = shoot - 1 ' lower the shoot frame
+  EndIf ' end if
+  GraphicsWindow.DrawResizedImage(texture_gun[shoot], width/2-256/2, height-256,256,256) 'Draw the Gun
+  GraphicsWindow.BrushColor = "#111" ' set scoreboard backgground color to be dark grey
+  GraphicsWindow.FillRectangle(0, height, width, scoreboardHeight) 'Draw scoreboard
+  GraphicsWindow.FontSize = scoreboardHeight-20 ' set the font size
+  GraphicsWindow.BrushColor = "#fff" ' set text color to white
+  GraphicsWindow.DrawBoundText(10,height+10,width/3-20,"Enemys:" + Array.GetItemCount(enmy)) 'Draw Enemy Count
+  'Draw the Player health
+  GraphicsWindow.BrushColor = "#f00" ' set health bar background color to red
+  GraphicsWindow.FillRectangle(width/3+10+(width/3-20)/100*health, height+10, width/3-20-(width/3-20)/100*health, 20) ' draw the health bar backgroudn
+  GraphicsWindow.BrushColor = "#0f0" ' set the health bar color to green
+  GraphicsWindow.FillRectangle(width/3+10, height+10, (width/3-20)/100*health, 20) ' fill the health bar
+  GraphicsWindow.BrushColor = "#fff" ' set text color to white
+  GraphicsWindow.DrawBoundText(width/3*2+10,height+10,width/3-20,"MS Elapsed: " + time) 'Draw the Time Since Start
+  ' Draw Minimap: half's fps so is commented out uncomment for a minimap
+  'GraphicsWindow.BrushColor = "#fff" 'white wall
+  'for x = 0 To Array.GetItemCount(worldMap)-1 'loop over the map x
+  '  for y = 0 To Array.GetItemCount(worldMap[1])-1 ' loop over the map y
+  '    tile = worldMap[x][y]  ' set the current tile
+  '    If tile  <> 0 And tile <> 8 And tile <> 9 Then ' if the spot contains a wall
+  '      GraphicsWindow.FillRectangle(width-(x+2)*boxWidth,y*boxHeight,boxWidth,boxHeight) ' fill the square
+  '    EndIf ' end the if statement
+  '  EndFor ' end the for loop
+  'EndFor ' end the for loop
+  'GraphicsWindow.PenColor = "#000" ' set the pen to be black
+  'GraphicsWindow.DrawRectangle(width-w8-boxWidth,0,w8,w8) 'draw a box outline
+EndSub
+'Threading
+Sub SoundEngine ' the sound engine
+  Timer.Pause() 'Pause timer to prevent reentrency
+  While ("True")
+    Sound.Play(Program.Directory + "/Background.mp3") ' play the background music
+    if soundShoot = "True" Then ' if the shoot sound should play
+      soundShoot = "False" ' set the shootsound var to be false
+      Sound.PlayAndWait(Program.Directory + "/Shoot.wav") ' play the shoot sound
+    EndIf ' end if
+    If PlayerInjured = "True" Then ' if the injured sound should play
+      PlayerInjured = "False" ' set the injured player sound var to false
+      Sound.PlayAndWait(Program.Directory + "/Injured.mp3") ' play the injured sound
+    EndIf ' end if
+    Program.Delay(10) 'Don't mash cpu when nothing to do
+  EndWhile ' end the while loop
+EndSub ' end the subroutine for the sound engine
+' Handle keyboard input
+Sub OnKeyDown ' on key down
+  changed_key = GraphicsWindow.LastKey ' get the graphics key that went down, cant do this inline because sb throws an error that the lastkey is read only
+  keys[changed_key] = "True" ' set the key to be true
+EndSub
+Sub OnKeyUp ' on key up
+  changed_key = GraphicsWindow.LastKey ' get the graphics key that went down, cant do this inline because sb throws an error that the 
+  If changed_key = "Escape" Then ' if the key is escape
+    If location = "MapEditor" Then 'if the location is the mapEditor
+      TxtWorld = "" ' set the base map string
+      for x = 0 To Array.GetItemCount(worldMap)-1 ' loop over the map
+        for y = 0 To Array.GetItemCount(worldMap[1])-1 ' loop over the map
+          TxtWorld = TxtWorld + worldMap[x][y] ' add the spot to the map string
+          If y <> Array.GetItemCount(worldMap[1])-1 Then ' if the y is at the not at the end of the line
+            TxtWorld = TxtWorld + "," ' add a comma  to the string
+          EndIf ' end if
+        EndFor ' end the for loop
+        TxtWorld = TxtWorld + ";" + Text.GetCharacter(10) ' add a new line character to the map string
+      EndFor ' end the for loop
+      TextWindow.WriteLine(TxtWorld) ' give the player the string for the text window
+      TextWindow.Pause() ' pause the texwindow until input
+      TextWindow.Hide() ' hide the textwindow
+    EndIf ' end if 
+    MainMenuCleanup() ' cleanup last screen
+    InstructionsMenuCleanup() ' cleanup last screen
+    location = "MainMenu" ' set the location to be the main menu
+    Update = "True" ' set update to be true
+  EndIf ' end if
+  If changed_key = "Space" Then ' if the key was space then call mousedown for no mouse compatiblity
+    mouseDown = "True" ' set the mouse down to be true
+  EndIf ' end if
+  keys[changed_key] = "False" ' set the key to be false
+EndSub
+Sub OnMouseDown ' mouse down subroutine
+  mouseDown = "True" 'set mouse down to be true
+EndSub ' end the subroutine
+'Deal with Controls Button
+sub OnControlClick' button click function
+  Control = Controls.LastClickedButton ' get the button that was clicked
+  'match main menu controls
+  if Control = buttons["Play"] Then
+    MainMenuCleanup() ' cleanup last frame
+    location = "Game" 'set the location
+    w8 = width/8
+    boxWidth = w8/Array.GetItemCount(worldMap) 'calculate even box width
+    boxHeight = w8/Array.GetItemCount(worldMap[1]) 'calculate even box height
+    Update = "True" ' update frame
+  ElseIf Control = buttons["Map Maker"] Then
+    MainMenuCleanup() ' cleanup last frame
+    location = "MapEditor" 'set the location
+    Update = "True" ' update frame
+  ElseIf Control = buttons["Instructions"] Then
+    MainMenuCleanup() ' cleanup last frame
+    location = "Instructions" 'set the location
+    Update = "True" ' update frame
+  ElseIf Control = buttons["InstructionsBack"] Then ' Instructions Page 
+    InstructionsMenuCleanup() ' cleanup last frame
+    location = "MainMenu" 'set the location
+    Update = "True" ' update frame
+  EndIf
+EndSub ' end the subroutine
